@@ -1,0 +1,242 @@
+<?xml version="1.0"?> 
+<project name="fhxalgo" default="build" basedir="."> 
+
+  <property name="app" value="fhx_java" />
+  <property name="major.version" value="v1" />
+  <property name="minor.version" value="0" />
+  <property name="app.version" value="${major.version}.${minor.version}" />
+
+  <property environment="env" />
+  <property file="./build.properties" />
+
+  <tstamp>
+    <format property="TODAY" pattern="yyyyMMdd" />
+    <format property="NOW" pattern="yyyyMMdd_HHmmss" />
+  </tstamp>
+
+
+  <!-- parameter as attribute --> 
+  <macrodef name="fancy-echo"> 
+    <attribute name="text" default="default value"/> 
+    <sequential> 
+      <echo message="by quanttradingideas.com"/> 
+      <echo message="type ant deploy to @{text}"/> 
+    </sequential> 
+  </macrodef> 
+
+  <!-- usage examples --> 
+  <target name="help" description="print this help"> 
+    <fancy-echo text="pull from github, build it, and deploy it.  have fun!!"/> 
+    <echo/> 
+    <echo message="NOW: ${NOW} "/> 
+  </target> 
+
+  <target name="init" if="svn.savelog" unless="already.running">
+    <!-- create the logging for the build -->
+    <tstamp/>
+    <property name="startdate" value="${DSTAMP}"/>
+    <property name="starttime" value="${NOW}"/>
+    <property name="logfilename"  value="${svn.logdir}/${app}-${starttime}.log"/>
+    <echo message="log=${logfilename}"/>
+    <mkdir dir="${svn.logdir}"/>
+    <record name="${logfilename}" action="start" append="true" loglevel="info"/>
+  </target>
+
+<macrodef name = "git"> 
+    <attribute name = "command" /> 
+    <attribute name = "dir" default = "" /> 
+    <element name = "args" optional = "true" /> 
+    <sequential> 
+        <echo message = "git @{command}" /> 
+        <exec executable = "git" dir = "@{dir}"> 
+            <arg value = "@{command}" /> 
+            <args/> 
+        </exec> 
+    </sequential> 
+</macrodef> 
+
+<macrodef name = "git-clone-pull"> 
+    <attribute name = "repository" /> 
+    <attribute name = "dest" /> 
+    <sequential> 
+        <git command = "clone"> 
+            <args> 
+                <arg value = "@{repository}" /> 
+                <arg value = "@{dest}" /> 
+            </args> 
+        </git> 
+        <git command = "pull" dir = "@{dest}" /> 
+    </sequential> 
+</macrodef> 
+
+<!-- 
+http://tlrobinson.net/blog/2008/11/ant-tasks-for-git/
+https://github.com/fhxalgo/fhx_model 
+
+<git command = "clone"> 
+    <args> 
+        <arg value = "git://github.com/280north/ojunit.git" /> 
+        <arg value = "ojunit" /> 
+    </args> 
+</git> 
+<git command = "pull" dir = "repository_path" /> 
+<git-clone-pull repository="git://github.com/280north/ojunit.git" dest="ojunit" />
+--> 
+
+  <target name="clone" description="clone existing git repo"> 
+    <fancy-echo text="clone existing git repo"/> 
+    <echo/> 
+    <git command = "clone"> 
+        <args> 
+        <arg value = "git://github.com/fhxalgo/fhx_java.git" /> 
+        <arg value = "output" /> 
+        </args> 
+    </git> 
+  </target> 
+
+  <target name="pull" description="pull latest changes from origin"> 
+    <fancy-echo text="pull latest changes from origin"/> 
+    <echo/> 
+    <git command = "pull" dir = "output" /> 
+  </target> 
+
+
+  <target name="build" depends="init,pull" unless="build.uptodate">
+    
+    <property name="build.version" value="${app.version}_${NOW}/${app}-${app.version}" />
+    <mkdir dir="${build.version}"/>
+    <echo message="create build.version dir: ${build.version}"/>
+
+    <copy todir="${build.version}/lib">
+      <fileset dir="output/bin">
+         <include name="*.lib" />
+         <include name="*.so*" />
+      </fileset>
+    </copy>
+
+    <copy todir="${build.version}/config">
+      <fileset dir="output/conf">
+        <include name="*.xml" />
+        <include name="*.properties" />
+        <include name="*.cfg" />
+      </fileset>
+    </copy>
+
+    <copy todir="${build.version}/conf">
+      <fileset dir="output/conf">
+        <include name="*.*" />
+      </fileset>
+    </copy>
+
+    <copy todir="${build.version}/jars">
+      <fileset dir="output/3rdlibs">
+        <include name="**/*.jar" />
+      </fileset>
+    </copy>
+
+    <path id="build.classpath">
+      <fileset dir="${build.version}/jars">
+        <include name="**/*.jar" />
+      </fileset>
+    </path>
+
+    <!-- compiles java files -->
+    <mkdir dir="${build.version}/classes" />
+    <!-- Compile the source -->
+    <javac debug="true" destdir="${build.version}/classes" srcdir="output/src" executable="javac" fork="true" includeantruntime="true" >
+      <classpath>
+        <path refid="build.classpath" />
+      </classpath>
+    </javac>
+
+    <copy todir="${build.version}/classes">
+      <fileset dir="output/src">
+        <include name="**/*.properties" />
+      </fileset>
+    </copy>
+
+    <mkdir dir="${build.version}/classes/META-INF" />
+    <mkdir dir="${build.version}/classes/META-INF/services" />
+    <copy todir="${build.version}/classes">
+      <fileset dir="output/META-INF">
+         <include name="*.MF" />
+      </fileset>
+    </copy>
+    <copy todir="${build.version}/classes/META-INF/services">
+      <fileset dir="output/META-INF/services">
+        <include name="*.*" />
+          <include name="**/*.*" />
+      </fileset>
+    </copy>
+
+    <!-- build jar artifacts -->
+    <jar destfile="${build.version}/jars/${app}-${app.version}.jar">
+      <fileset dir="${build.version}/classes">
+        <include name="**/*.class" />
+        <include name="**/*.properties" />
+        <include name="**/*.ModuleFactory" />
+      </fileset>
+      <fileset dir="${build.version}/conf">
+        <include name="**/*.*" />
+      </fileset>
+    </jar>
+
+    <mkdir dir="${build.version}/logs"/>
+
+    <copy todir="${build.version}/bin">
+      <fileset dir="output">
+        <include name="*.sh" />
+        <include name="*.bat" />
+      </fileset>
+    </copy>
+
+    <jar destfile="${build.version}/src/${app}_src.jar">
+      <fileset dir="output"/>
+    </jar>
+
+  </target>
+
+
+<target name="deploy" depends="init,build">
+    <copy todir="/home/hfxdev/sa/modules/jars">
+      <fileset dir="${build.version}/jars">
+        <include name="*.jar" />
+      </fileset>
+    </copy>
+    <copy todir="/home/hfxdev/sa/modules/jars">
+      <fileset dir="output/3rdlibs/rosuda">
+        <include name="*.jar" />
+      </fileset>
+    </copy>
+    <copy todir="/home/hfxdev/sa/src/com/fhx/strategy/java">
+      <fileset dir="output/src/com/fhx/strategy/java">
+        <include name="MarketDataIB.java" />
+        <include name="MarketDataHandler.java" />
+      </fileset>
+    </copy>
+    <copy todir="/home/hfxdev/sa/conf">
+      <fileset dir="output/conf">
+        <include name="*.properties" />
+      	<include name="*.csv" />
+      </fileset>
+    </copy>
+    <copy todir="/export/FHX/fhx_model">
+      <fileset dir="/home/hfxdev/build/fhx_model/output">
+        <include name="correlation_realtime_svc.r" />
+        <include name="test*.r" />
+      </fileset>
+    </copy>
+</target>
+
+  <target name="all" depends="deploy">
+    <echo>SUCCESS: ${app.version}</echo>
+      <tar destfile="${app.version}_${NOW}/${app}-${app.version}.tar" basedir="${app.version}_${NOW}/${app}-${app.version}" />
+
+      <gzip destfile="${app.version}_${NOW}/${app}-${app.version}.tar.gz" src="${app.version}_${NOW}/${app}-${app.version}.tar" />
+
+      <touch file="./BUILD.DONE"/>
+  </target>
+
+
+</project> 
+

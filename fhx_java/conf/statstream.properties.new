@@ -1,0 +1,48 @@
+# IB account information - Paper Trading
+ACCOUNT_CODE=DU121364
+
+# directory
+HOME_DIR=/export
+DATA_DIR=/export/data/
+SYMBOL_FILE=/export/FHX/fhx_java/conf/ndx.us.csv
+TICKDATA_DIR=/export/data/
+
+# R
+R_EXECUTABLE=/usr/bin/Rscript
+HOST=127.0.0.1
+
+# scripts
+R_RUN_SCRIPT=/export/FHX/fhx_model/run_statstream.r
+R_MAIN_SCRIPT=/export/FHX/fhx_model/tickcount_main.r
+R_FUNC_SCRIPT=/export/FHX/fhx_model/tickcount_func.r
+# exec R func and return eval expression
+R_FUNC_EXEC=retList<-process_bw_data
+R_FUNC_TEST_ORDER=retList<-test_order_func
+R_FUNC_EVAL=paste(capture.output(print(do.call(rbind,entry_order_list))),collapse='\\n')
+
+# model params
+BASIC_WINDOW_SIZE=24
+SLIDING_WINDOW_SIZE=120
+
+# market period
+MKT_OPEN_HR=9
+MKT_OPEN_MIN=30
+MKT_OPEN_SEC=0
+MKT_CLOSE_HR=16
+MKT_CLOSE_MIN=0
+MKT_CLOSE_SEC=0
+
+BENCHMARK_INDEX=DIA
+ 
+R_DEBUG=false
+
+# if true, orders will not be sent to IB
+SIMULATION=false
+# use either historical or realtime market data		 
+#MD_SERVICE_MODE=Realtime
+MD_SERVICE_MODE=Historical
+# if true, call R test func to always generate fake orders
+TEST_ORDER_MODE=False
+
+
+	
